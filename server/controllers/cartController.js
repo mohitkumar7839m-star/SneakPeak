@@ -1,0 +1,117 @@
+
+const Cart = require("../models/Cart");
+const Product = require("../models/Product");
+
+// Get the logged-in user's cart
+const getCart = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    let cart = await Cart.findOne({ user: userId })
+      .populate("items.product");
+
+    if (!cart) {
+      cart = await Cart.create({
+        user: userId,
+        items: []
+      });
+    }
+
+    return res.status(200).json({
+      message: "Cart fetched successfully",
+      cart
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch cart",
+      error: error.message
+    });
+  }
+};
+
+// Add a product to the cart
+const addToCart = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { productId, size, quantity = 1 } = req.body;
+
+    if (!productId || !size) {
+      return res.status(400).json({
+        message: "Product ID and size are required"
+      });
+    }
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      return res.status(400).json({
+        message: "Quantity must be a positive integer"
+      });
+    }
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      return res.status(404).json({
+        message: "Product not found"
+      });
+    }
+
+    if (!product.sizes.includes(size)) {
+      return res.status(400).json({
+        message: "Selected size is not available"
+      });
+    }
+
+    if (product.stock < quantity) {
+      return res.status(400).json({
+        message: "Insufficient stock"
+      });
+    }
+
+    let cart = await Cart.findOne({ user: userId });
+
+    if (!cart) {
+      cart = new Cart({
+        user: userId,
+        items: []
+      });
+    }
+
+    const existingItem = cart.items.find(
+      (item) =>
+        item.product.toString() === productId &&
+        item.size === size
+    );
+
+    if (existingItem) {
+      if (existingItem.quantity + quantity > product.stock) {
+        return res.status(400).json({
+          message: "Requested quantity exceeds available stock"
+        });
+      }
+
+      existingItem.quantity += quantity;
+    } else {
+      cart.items.push({
+        product: product._id,
+        size,
+        quantity
+      });
+    }
+
+    await cart.save();
+
+    await cart.populate("items.product");
+
+    return res.status(200).json({
+      message: "Product added to cart successfully",
+      cart
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to add product to cart",
+      error: error.message
+    });
+  }
+};
+
+module.exports = { getCart, addToCart };
