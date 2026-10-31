@@ -33,11 +33,24 @@ const getCart = async (req, res) => {
 const addToCart = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { productId, size, quantity = 1 } = req.body;
+    const { productId, size } = req.body;
+    const quantity = req.body.quantity ?? 1;
+    const numericSize = Number(size);
 
-    if (!productId || !size) {
+    if (
+      !productId ||
+      size === undefined ||
+      size === null ||
+      size === ""
+    ) {
       return res.status(400).json({
         message: "Product ID and size are required"
+      });
+    }
+
+    if (!Number.isFinite(numericSize) || numericSize <= 0) {
+      return res.status(400).json({
+        message: "Invalid shoe size"
       });
     }
 
@@ -49,19 +62,23 @@ const addToCart = async (req, res) => {
 
     const product = await Product.findById(productId);
 
-    if (!product) {
+    if (!product || product.isArchived) {
       return res.status(404).json({
         message: "Product not found"
       });
     }
 
-    if (!product.sizes.includes(size)) {
+    const selectedSize = product.sizes.find(
+      s => s.size === numericSize
+    );
+
+    if (!selectedSize) {
       return res.status(400).json({
         message: "Selected size is not available"
       });
     }
 
-    if (product.stock < quantity) {
+    if (selectedSize.stock < quantity) {
       return res.status(400).json({
         message: "Insufficient stock"
       });
@@ -79,11 +96,11 @@ const addToCart = async (req, res) => {
     const existingItem = cart.items.find(
       item =>
         item.product.toString() === productId &&
-        item.size === size
+        item.size === numericSize
     );
 
     if (existingItem) {
-      if (existingItem.quantity + quantity > product.stock) {
+      if (existingItem.quantity + quantity > selectedSize.stock) {
         return res.status(400).json({
           message: "Requested quantity exceeds available stock"
         });
@@ -93,7 +110,7 @@ const addToCart = async (req, res) => {
     } else {
       cart.items.push({
         product: product._id,
-        size,
+        size: numericSize,
         quantity
       });
     }
@@ -144,19 +161,23 @@ const updateCartItem = async (req, res) => {
 
     const product = await Product.findById(item.product);
 
-    if (!product) {
+    if (!product || product.isArchived) {
       return res.status(404).json({
         message: "Product not found"
       });
     }
 
-    if (!product.sizes.includes(item.size)) {
+    const selectedSize = product.sizes.find(
+      s => s.size === Number(item.size)
+    );
+
+    if (!selectedSize) {
       return res.status(400).json({
         message: "Selected size is no longer available"
       });
     }
 
-    if (quantity > product.stock) {
+    if (quantity > selectedSize.stock) {
       return res.status(400).json({
         message: "Insufficient stock"
       });
