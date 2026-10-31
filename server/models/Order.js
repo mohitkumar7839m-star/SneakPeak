@@ -16,10 +16,11 @@ const orderItemSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
-    size: {
-      type: String,
-      required: true
-    },
+   size: {
+  type: Number,
+  required: true,
+  min: 1
+},
     quantity: {
       type: Number,
       required: true,
