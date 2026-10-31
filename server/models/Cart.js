@@ -7,17 +7,18 @@ const cartItemSchema = new mongoose.Schema({
     ref: "Product",
     required: true
   },
-  size: {
-    type: String,
+  size: { 
+    type: Number,
     required: true,
-    trim: true
+    min: 1
   },
+ 
   quantity: {
-    type: String,
-    required: true,
-    min: 1,
-    default: 1
-  }
+  type: Number,
+  required: true,
+  min: 1,
+  default: 1
+}
 });
 
 const cartSchema = new mongoose.Schema(
