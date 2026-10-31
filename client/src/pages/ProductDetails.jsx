@@ -106,12 +106,23 @@ const products = [
 
 const sizes = ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"];
 
+function readStorage(key) {
+  try {
+    const data = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
 function ProductDetails() {
   const { id } = useParams();
   const product = products.find((item) => item._id === id);
+
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
+  const [imageError, setImageError] = useState(false);
 
   function addToCart() {
     if (!selectedSize) {
@@ -119,17 +130,28 @@ function ProductDetails() {
       return;
     }
 
-    const cart = JSON.parse(localStorage.getItem("sneakpeak_cart") || "[]");
+    const cart = readStorage("sneakpeak_cart");
+
     const existingItem = cart.find(
-      (item) => item.productId === product._id && item.size === selectedSize
+      (item) =>
+        String(item.productId || item._id) === String(product._id) &&
+        item.size === selectedSize
     );
 
     if (existingItem) {
-      existingItem.quantity += quantity;
+      const currentQuantity = Math.max(1, Number(existingItem.quantity) || 1);
+
+      if (currentQuantity + quantity > 10) {
+        setMessage("Maximum quantity of 10 reached for this size.");
+        return;
+      }
+
+      existingItem.quantity = currentQuantity + quantity;
     } else {
       cart.push({
         productId: product._id,
         name: product.name,
+        category: product.category,
         price: product.price,
         image: product.image,
         size: selectedSize,
@@ -137,13 +159,21 @@ function ProductDetails() {
       });
     }
 
-    localStorage.setItem("sneakpeak_cart", JSON.stringify(cart));
-    setMessage("Added to your cart successfully!");
+    try {
+      localStorage.setItem("sneakpeak_cart", JSON.stringify(cart));
+      setMessage("Added to your cart successfully!");
+    } catch {
+      setMessage("Unable to update your cart. Please try again.");
+    }
   }
 
   function addToWishlist() {
-    const wishlist = JSON.parse(localStorage.getItem("sneakpeak_wishlist") || "[]");
-    const alreadySaved = wishlist.some((item) => item.productId === product._id);
+    const wishlist = readStorage("sneakpeak_wishlist");
+
+    const alreadySaved = wishlist.some(
+      (item) =>
+        String(item.productId || item._id) === String(product._id)
+    );
 
     if (alreadySaved) {
       setMessage("This sneaker is already in your wishlist.");
@@ -153,12 +183,19 @@ function ProductDetails() {
     wishlist.push({
       productId: product._id,
       name: product.name,
+      category: product.category,
       price: product.price,
-      image: product.image
+      image: product.image,
+      seller: "SneakPeak Select"
     });
 
-    localStorage.setItem("sneakpeak_wishlist", JSON.stringify(wishlist));
-    setMessage("Added to your wishlist!");
+    try {
+      localStorage.setItem("sneakpeak_wishlist", JSON.stringify(wishlist));
+      window.dispatchEvent(new Event("wishlistUpdated"));
+      setMessage("Added to your wishlist!");
+    } catch {
+      setMessage("Unable to update your wishlist. Please try again.");
+    }
   }
 
   if (!product) {
@@ -186,15 +223,27 @@ function ProductDetails() {
       <div className="details-layout">
         <div className="details-image-wrap">
           <span className="details-badge">{product.badge}</span>
-          <img src={product.image} alt={product.name} />
+          {imageError ? (
+            <div className="product-image-fallback">
+              Image unavailable
+            </div>
+          ) : (
+            <img
+              src={product.image}
+              alt={product.name}
+              onError={() => setImageError(true)}
+            />
+          )}
         </div>
 
         <div className="details-info">
           <p className="details-category">{product.category}</p>
           <h1>{product.name}</h1>
+
           <p className="details-price">
             ₹{product.price.toLocaleString("en-IN")}
           </p>
+
           <p className="details-description">{product.description}</p>
 
           <div className="details-size-heading">
@@ -212,6 +261,7 @@ function ProductDetails() {
                   setSelectedSize(size);
                   setMessage("");
                 }}
+                aria-pressed={selectedSize === size}
               >
                 {size}
               </button>
@@ -220,34 +270,55 @@ function ProductDetails() {
 
           <div className="details-quantity">
             <span>Quantity</span>
+
             <div className="quantity-control">
               <button
                 type="button"
-                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                onClick={() =>
+                  setQuantity((current) => Math.max(1, current - 1))
+                }
                 aria-label="Decrease quantity"
+                disabled={quantity <= 1}
               >
                 −
               </button>
+
               <span>{quantity}</span>
+
               <button
                 type="button"
-                onClick={() => setQuantity((current) => Math.min(10, current + 1))}
+                onClick={() =>
+                  setQuantity((current) => Math.min(10, current + 1))
+                }
                 aria-label="Increase quantity"
+                disabled={quantity >= 10}
               >
                 +
               </button>
             </div>
           </div>
 
-          <button type="button" className="details-add-cart" onClick={addToCart}>
+          <button
+            type="button"
+            className="details-add-cart"
+            onClick={addToCart}
+          >
             Add to Cart — ₹{(product.price * quantity).toLocaleString("en-IN")}
           </button>
 
-          <button type="button" className="details-wishlist" onClick={addToWishlist}>
+          <button
+            type="button"
+            className="details-wishlist"
+            onClick={addToWishlist}
+          >
             ♡ Add to Wishlist
           </button>
 
-          {message && <p className="details-message" role="status">{message}</p>}
+          {message && (
+            <p className="details-message" role="status">
+              {message}
+            </p>
+          )}
 
           <div className="details-perks">
             <p>✓ Cash on Delivery available</p>

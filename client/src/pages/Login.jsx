@@ -1,24 +1,36 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 function Login() {
   const [formData, setFormData] = useState({
     email: "",
     password: ""
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((current) => ({ ...current, [name]: value }));
+
+    setFormData((current) => ({
+      ...current,
+      [name]: value
+    }));
+
     setMessage("");
   }
 
   function handleSubmit(event) {
     event.preventDefault();
+
+    if (!formData.email.trim() || !formData.password) {
+      setMessage("Please enter your email and password.");
+      return;
+    }
+
     setMessage("Login API integration is pending. Your form is ready.");
   }
 
@@ -27,11 +39,18 @@ function Login() {
       <div className="auth-visual">
         <div className="auth-visual-content">
           <p className="auth-eyebrow">STEP INTO YOUR STYLE</p>
-          <h1>Every pair has a story. <span>Make yours.</span></h1>
+
+          <h1>
+            Every pair has a story. <span>Make yours.</span>
+          </h1>
+
           <p className="auth-visual-description">
             Discover sneakers that move with you, wherever your style takes you.
           </p>
-          <div className="auth-visual-mark">SP<span>.</span></div>
+
+          <div className="auth-visual-mark">
+            SP<span>.</span>
+          </div>
         </div>
       </div>
 
@@ -42,13 +61,16 @@ function Login() {
           </Link>
 
           <p className="auth-form-eyebrow">WELCOME BACK</p>
+
           <h2>Good to see you.</h2>
+
           <p className="auth-subtitle">
             Sign in to continue your SneakPeak journey.
           </p>
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <label htmlFor="login-email">Email address</label>
+
             <input
               id="login-email"
               type="email"
@@ -57,12 +79,14 @@ function Login() {
               value={formData.email}
               onChange={handleChange}
               autoComplete="email"
+              maxLength={254}
               required
             />
 
             <div className="auth-password-heading">
               <label htmlFor="login-password">Password</label>
             </div>
+
             <div className="auth-password-field">
               <input
                 id="login-password"
@@ -74,6 +98,7 @@ function Login() {
                 autoComplete="current-password"
                 required
               />
+
               <button
                 type="button"
                 onClick={() => setShowPassword((visible) => !visible)}
@@ -83,12 +108,18 @@ function Login() {
               </button>
             </div>
 
-            <button type="submit" className="auth-submit">
-              Sign In <span>→</span>
+            <button
+              type="submit"
+              className="auth-submit"
+              disabled={loading}
+            >
+              {loading ? "Signing in..." : "Sign In"} <span>→</span>
             </button>
 
             {message && (
-              <p className="auth-message" role="status">{message}</p>
+              <p className="auth-message" role="status">
+                {message}
+              </p>
             )}
           </form>
 

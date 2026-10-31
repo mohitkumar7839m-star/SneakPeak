@@ -48,7 +48,10 @@ function Hero() {
         <div className="hero-orbit orbit-one" />
         <div className="hero-orbit orbit-two" />
         <div className="hero-image">
-          <img src="//one8.com/cdn/shop/files/V10018201_03_2f0eb140-a784-451d-9138-e7436aebf7a0.jpg?v=1781597963&width=1080" alt="Red ONE8 cricket shoes" />
+          <img
+            src="https://one8.com/cdn/shop/files/V10018201_03_2f0eb140-a784-451d-9138-e7436aebf7a0.jpg?v=1781597963&width=1080"
+            alt="Red ONE8 cricket shoes"
+          />
         </div>
         <div className="hero-tag tag-top">DESIGNED TO MOVE</div>
         <div className="hero-tag tag-bottom">

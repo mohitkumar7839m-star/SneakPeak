@@ -7,9 +7,9 @@ import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import "./App.css";
 import Cart from "./pages/Cart";
 import Wishlist from "./pages/Wishlist";
+import "./App.css";
 
 function App() {
   return (
@@ -21,14 +21,14 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetails />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route
             path="*"
             element={<h2 className="not-found">Page not found</h2>}
           />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/wishlist" element={<Wishlist />} />
         </Routes>
       </main>
 
