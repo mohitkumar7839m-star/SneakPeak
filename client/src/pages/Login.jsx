@@ -1,8 +1,10 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 function Login() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     email: "",
     password: ""
@@ -23,7 +25,7 @@ function Login() {
     setMessage("");
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (!formData.email.trim() || !formData.password) {
@@ -31,7 +33,46 @@ function Login() {
       return;
     }
 
-    setMessage("Login API integration is pending. Your form is ready.");
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email: formData.email.trim(),
+            password: formData.password
+          })
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed.");
+      }
+
+      if (!data.token || !data.user) {
+        throw new Error("Invalid server response.");
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setMessage("Login successful!");
+
+      navigate("/");
+
+    } catch (error) {
+      setMessage(error.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -102,7 +143,9 @@ function Login() {
               <button
                 type="button"
                 onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -113,7 +156,8 @@ function Login() {
               className="auth-submit"
               disabled={loading}
             >
-              {loading ? "Signing in..." : "Sign In"} <span>→</span>
+              {loading ? "Signing in..." : "Sign In"}
+              <span>→</span>
             </button>
 
             {message && (
@@ -124,7 +168,8 @@ function Login() {
           </form>
 
           <p className="auth-switch">
-            New to SneakPeak? <Link to="/register">Create an account</Link>
+            New to SneakPeak?{" "}
+            <Link to="/register">Create an account</Link>
           </p>
 
           <p className="auth-terms">
