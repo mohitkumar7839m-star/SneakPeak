@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const Cart = require("../models/Cart");
 const Product = require("../models/Product");
@@ -19,19 +18,19 @@ const checkout = async (req, res) => {
       "address",
       "city",
       "state",
-      "pincode"
+      "pincode",
     ];
 
     if (
       !shippingAddress ||
       requiredFields.some(
-        field =>
+        (field) =>
           typeof shippingAddress[field] !== "string" ||
-          !shippingAddress[field].trim()
+          !shippingAddress[field].trim(),
       )
     ) {
       return res.status(400).json({
-        message: "Complete shipping address is required"
+        message: "Complete shipping address is required",
       });
     }
 
@@ -54,25 +53,22 @@ const checkout = async (req, res) => {
         }
 
         const selectedSize = product.sizes.find(
-          s => s.size === Number(item.size)
+          (s) => s.size === Number(item.size),
         );
 
         if (!selectedSize) {
           throw new Error(
-            `Size ${item.size} is unavailable for ${product.name}`
+            `Size ${item.size} is unavailable for ${product.name}`,
           );
         }
 
-        if (
-          !Number.isInteger(item.quantity) ||
-          item.quantity < 1
-        ) {
+        if (!Number.isInteger(item.quantity) || item.quantity < 1) {
           throw new Error("Invalid cart quantity");
         }
 
         if (selectedSize.stock < item.quantity) {
           throw new Error(
-            `Insufficient stock for ${product.name}, size ${item.size}`
+            `Insufficient stock for ${product.name}, size ${item.size}`,
           );
         }
 
@@ -82,7 +78,7 @@ const checkout = async (req, res) => {
           image: product.images?.[0] || "",
           size: selectedSize.size,
           quantity: item.quantity,
-          price: selectedSize.price
+          price: selectedSize.price,
         });
 
         totalAmount += selectedSize.price * item.quantity;
@@ -96,39 +92,41 @@ const checkout = async (req, res) => {
             sizes: {
               $elemMatch: {
                 size: item.size,
-                stock: { $gte: item.quantity }
-              }
-            }
+                stock: { $gte: item.quantity },
+              },
+            },
           },
           {
             $inc: {
-              "sizes.$.stock": -item.quantity
-            }
+              "sizes.$.stock": -item.quantity,
+            },
           },
           {
             new: true,
-            session
-          }
+            session,
+          },
         );
 
         if (!updatedProduct) {
           throw new Error(
-            `Insufficient stock for ${item.name}, size ${item.size}`
+            `Insufficient stock for ${item.name}, size ${item.size}`,
           );
         }
       }
 
       const orders = await Order.create(
-        [{
-          user: userId,
-          items: orderItems,
-          shippingAddress,
-          totalAmount,
-          paymentMethod: "COD",
-          paymentStatus: "Pending",
-          orderStatus: "Placed"
-        }],
-        { session }
+        [
+          {
+            user: userId,
+            items: orderItems,
+            shippingAddress,
+            totalAmount,
+            paymentMethod: "COD",
+            paymentStatus: "Pending",
+            orderStatus: "Placed",
+          },
+        ],
+        { session },
       );
 
       createdOrder = orders[0];
@@ -140,9 +138,8 @@ const checkout = async (req, res) => {
 
     return res.status(201).json({
       message: "Order placed successfully",
-      order: createdOrder
+      order: createdOrder,
     });
-
   } catch (error) {
     const isClientError =
       error.message === "Your cart is empty" ||
@@ -153,74 +150,69 @@ const checkout = async (req, res) => {
 
     return res.status(isClientError ? 400 : 500).json({
       message: isClientError ? error.message : "Checkout failed",
-      error: error.message
+      error: error.message,
     });
-
   } finally {
     await session.endSession();
   }
 };
 
-
 // Get logged-in customer's order history
 const getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id })
-      .sort({ createdAt: -1 });
+    const orders = await Order.find({ user: req.user.id }).sort({
+      createdAt: -1,
+    });
 
     return res.status(200).json({
       count: orders.length,
-      orders
+      orders,
     });
-
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch orders",
-      error: error.message
+      error: error.message,
     });
   }
 };
-
 
 // Get a single order belonging to logged-in customer
 const getOrderById = async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.orderId)) {
       return res.status(400).json({
-        message: "Invalid order ID"
+        message: "Invalid order ID",
       });
     }
 
     const order = await Order.findOne({
       _id: req.params.orderId,
-      user: req.user.id
+      user: req.user.id,
     });
 
     if (!order) {
       return res.status(404).json({
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     return res.status(200).json({ order });
-
   } catch (error) {
     return res.status(500).json({
       message: "Failed to fetch order",
-      error: error.message
+      error: error.message,
     });
   }
 };
 
-
-// Cancel an order that has not progressed beyond Placed
+// Cancel an order that has not progressed beyond Confirmed
 const cancelOrder = async (req, res) => {
   const session = await mongoose.startSession();
 
   try {
     if (!mongoose.isValidObjectId(req.params.orderId)) {
       return res.status(400).json({
-        message: "Invalid order ID"
+        message: "Invalid order ID",
       });
     }
 
@@ -230,13 +222,11 @@ const cancelOrder = async (req, res) => {
       const order = await Order.findOne({
         _id: req.params.orderId,
         user: req.user.id,
-        orderStatus: "Placed"
+        orderStatus: { $in: ["Placed", "Confirmed"] },
       }).session(session);
 
       if (!order) {
-        throw new Error(
-          "Order not found or can no longer be cancelled"
-        );
+        throw new Error("Order not found or can no longer be cancelled");
       }
 
       // Restore stock to the correct shoe size
@@ -246,21 +236,21 @@ const cancelOrder = async (req, res) => {
             _id: item.product,
             sizes: {
               $elemMatch: {
-                size: item.size
-              }
-            }
+                size: item.size,
+              },
+            },
           },
           {
             $inc: {
-              "sizes.$.stock": item.quantity
-            }
+              "sizes.$.stock": item.quantity,
+            },
           },
-          { session }
+          { session },
         );
 
         if (restored.matchedCount === 0) {
           throw new Error(
-            `Could not restore stock for ${item.name}, size ${item.size}`
+            `Could not restore stock for ${item.name}, size ${item.size}`,
           );
         }
       }
@@ -273,27 +263,23 @@ const cancelOrder = async (req, res) => {
 
     return res.status(200).json({
       message: "Order cancelled successfully",
-      order: cancelledOrder
+      order: cancelledOrder,
     });
-
   } catch (error) {
-    const isClientError =
-      error.message.startsWith("Order not found");
+    const isClientError = error.message.startsWith("Order not found");
 
     return res.status(isClientError ? 400 : 500).json({
       message: error.message,
-      error: error.message
+      error: error.message,
     });
-
   } finally {
     await session.endSession();
   }
 };
 
-
 module.exports = {
   checkout,
   getMyOrders,
   getOrderById,
-  cancelOrder
+  cancelOrder,
 };
