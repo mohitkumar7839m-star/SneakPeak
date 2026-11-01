@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
 
@@ -44,16 +43,15 @@ function Navbar() {
           <NavLink to="/cart" onClick={closeMenu}>
             🛍 Cart
           </NavLink>
+          <NavLink to="/orders" onClick={closeMenu}>
+            My Orders
+          </NavLink>
 
           <NavLink to="/login" onClick={closeMenu}>
             Login
           </NavLink>
 
-          <NavLink
-            to="/register"
-            className="nav-register"
-            onClick={closeMenu}
-          >
+          <NavLink to="/register" className="nav-register" onClick={closeMenu}>
             Join Us
           </NavLink>
         </nav>

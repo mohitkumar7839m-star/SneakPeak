@@ -1,4 +1,3 @@
-
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -10,6 +9,7 @@ import Register from "./pages/Register";
 import Cart from "./pages/Cart";
 import Wishlist from "./pages/Wishlist";
 import "./App.css";
+import Orders from "./pages/Orders";
 
 function App() {
   return (
@@ -29,6 +29,7 @@ function App() {
             path="*"
             element={<h2 className="not-found">Page not found</h2>}
           />
+          <Route path="/orders" element={<Orders />} />
         </Routes>
       </main>
 
