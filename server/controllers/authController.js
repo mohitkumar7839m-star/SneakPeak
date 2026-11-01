@@ -1,14 +1,12 @@
 ﻿
-const User = require("../models/user");
+const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Register a new user
 const registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // Check required fields
     if (
       typeof name !== "string" ||
       typeof email !== "string" ||
@@ -22,7 +20,6 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Validate name and password
     if (name.trim().length < 2 || name.trim().length > 60) {
       return res.status(400).json({
         message: "Name must be between 2 and 60 characters",
@@ -44,7 +41,6 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Check existing user
     const existingUser = await User.findOne({
       email: normalizedEmail,
     });
@@ -62,10 +58,8 @@ const registerUser = async (req, res) => {
       });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user (role defaults to customer)
     const user = await User.create({
       name: name.trim(),
       email: normalizedEmail,
@@ -78,7 +72,6 @@ const registerUser = async (req, res) => {
       { expiresIn: "7d" }
     );
 
-    // Never send password or password hash to client
     return res.status(201).json({
       message: "Registration successful",
       token,
@@ -90,7 +83,6 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
-    // Handle duplicate email index race condition
     if (error.code === 11000) {
       return res.status(409).json({
         message: "Email is already registered",
@@ -129,9 +121,9 @@ const loginUser = async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: normalizedEmail }).select(
-      "+password"
-    );
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
@@ -171,4 +163,143 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser };
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (
+      typeof currentPassword !== "string" ||
+      typeof newPassword !== "string" ||
+      !currentPassword ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        message: "Current password and new password are required",
+      });
+    }
+
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      return res.status(400).json({
+        message: "New password must be between 8 and 72 characters",
+      });
+    }
+
+    const user = await User.findById(req.user.id).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User account not found",
+      });
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message: "Current password is incorrect",
+      });
+    }
+
+    const samePassword = await bcrypt.compare(
+      newPassword,
+      user.password
+    );
+
+    if (samePassword) {
+      return res.status(400).json({
+        message: "New password must be different from your current password",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    console.error("Change password error:", error.message);
+
+    return res.status(500).json({
+      message: "Server error while changing password",
+    });
+  }
+};
+
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (
+      typeof email !== "string" ||
+      typeof newPassword !== "string" ||
+      !email.trim() ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        message: "Email and new password are required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailPattern.test(normalizedEmail)) {
+      return res.status(400).json({
+        message: "Please enter a valid email",
+      });
+    }
+
+    if (newPassword.length < 8 || newPassword.length > 72) {
+      return res.status(400).json({
+        message: "Password must be between 8 and 72 characters",
+      });
+    }
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "No account found with this email",
+      });
+    }
+
+    const samePassword = await bcrypt.compare(
+      newPassword,
+      user.password
+    );
+
+    if (samePassword) {
+      return res.status(400).json({
+        message: "New password must be different from your old password",
+      });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully. You can now log in.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+
+    return res.status(500).json({
+      message: "Server error while resetting password",
+    });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  changePassword,
+  forgotPassword,
+};

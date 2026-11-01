@@ -1,110 +1,6 @@
-
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-
-const products = [
-  {
-    _id: "sample-1",
-    name: "Air Motion Red",
-    category: "Running / Performance",
-    price: 7499,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=80",
-    description: "Bold performance sneakers designed for everyday movement, comfort, and standout street style.",
-    badge: "BESTSELLER"
-  },
-  {
-    _id: "sample-2",
-    name: "Urban Classic",
-    category: "Lifestyle / Everyday",
-    price: 5299,
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1000&q=80",
-    description: "Clean everyday sneakers that combine a versatile silhouette with all-day comfort.",
-    badge: "POPULAR"
-  },
-  {
-    _id: "sample-3",
-    name: "Street Form",
-    category: "Streetwear / Essentials",
-    price: 6199,
-    image: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1000&q=80",
-    description: "Modern streetwear sneakers made to bring a confident edge to your everyday outfits.",
-    badge: "NEW ARRIVAL"
-  },
-  {
-    _id: "sneak-101",
-    name: "Air Motion Red",
-    category: "Running / Performance",
-    price: 7499,
-    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=1000&q=80",
-    description: "Bold performance sneakers designed for everyday movement, comfort, and standout street style.",
-    badge: "BESTSELLER"
-  },
-  {
-    _id: "sneak-102",
-    name: "Urban Classic",
-    category: "Lifestyle / Everyday",
-    price: 5299,
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&w=1000&q=80",
-    description: "Clean everyday sneakers that combine a versatile silhouette with all-day comfort.",
-    badge: "POPULAR"
-  },
-  {
-    _id: "sneak-103",
-    name: "Street Form",
-    category: "Streetwear / Essentials",
-    price: 6199,
-    image: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1000&q=80",
-    description: "Modern streetwear sneakers made to bring a confident edge to your everyday outfits.",
-    badge: "NEW ARRIVAL"
-  },
-  {
-    _id: "sneak-104",
-    name: "Cloud Runner",
-    category: "Running / Performance",
-    price: 8999,
-    image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1000&q=80",
-    description: "Lightweight running-inspired sneakers for a comfortable, energetic everyday feel.",
-    badge: "FEATURED"
-  },
-  {
-    _id: "sneak-105",
-    name: "Mono Street",
-    category: "Streetwear / Essentials",
-    price: 4599,
-    image: "https://images.unsplash.com/photo-1495555961986-6d4c1ecb7be3?auto=format&fit=crop&w=1000&q=80",
-    description: "Minimal street sneakers with an easy-to-style design for everyday wear.",
-    badge: "TRENDING"
-  },
-  {
-    _id: "sneak-106",
-    name: "Court Legend",
-    category: "Lifestyle / Everyday",
-    price: 6899,
-    image: "https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&w=1000&q=80",
-    description: "A classic court-inspired look that works with casual outfits and weekend fits.",
-    badge: "CLASSIC"
-  },
-  {
-    _id: "sneak-107",
-    name: "Velocity Pro",
-    category: "Running / Performance",
-    price: 9999,
-    image: "https://images.unsplash.com/photo-1460353581641-37baddab0fa2?auto=format&fit=crop&w=1000&q=80",
-    description: "Sporty sneakers with a performance-inspired profile and a bold modern finish.",
-    badge: "PREMIUM"
-  },
-  {
-    _id: "sneak-108",
-    name: "Daily Essential",
-    category: "Lifestyle / Everyday",
-    price: 3999,
-    image: "https://images.unsplash.com/photo-1495555961986-6d4c1ecb7be3?auto=format&fit=crop&w=1000&q=80",
-    description: "An everyday essential with a versatile shape and a clean, understated style.",
-    badge: "VALUE PICK"
-  }
-];
-
-const sizes = ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"];
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import api from "../services/api";
 
 function readStorage(key) {
   try {
@@ -115,55 +11,154 @@ function readStorage(key) {
   }
 }
 
+function getImages(product) {
+  if (!Array.isArray(product?.images)) {
+    return product?.image ? [product.image] : [];
+  }
+
+  return product.images
+    .map((image) =>
+      typeof image === "string" ? image : image?.url || image?.imageUrl || "",
+    )
+    .filter(Boolean);
+}
+
 function ProductDetails() {
   const { id } = useParams();
-  const product = products.find((item) => item._id === id);
+  const navigate = useNavigate();
 
-  const [selectedSize, setSelectedSize] = useState("");
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedSize, setSelectedSize] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
   const [imageError, setImageError] = useState(false);
 
-  function addToCart() {
-    if (!selectedSize) {
-      setMessage("Please select your shoe size first.");
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchProduct() {
+      try {
+        setLoading(true);
+        setError("");
+        setProduct(null);
+        setSelectedSize(null);
+        setQuantity(1);
+        setMessage("");
+        setImageError(false);
+
+        const response = await api.get(`/products/${id}`);
+        const fetchedProduct = response.data?.product;
+
+        if (!fetchedProduct || fetchedProduct.isArchived) {
+          throw new Error("This sneaker may no longer be available.");
+        }
+
+        if (isMounted) {
+          setProduct(fetchedProduct);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              "Unable to load this sneaker.",
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const availableSizes = useMemo(() => {
+    if (!Array.isArray(product?.sizes)) {
+      return [];
+    }
+
+    return product.sizes
+      .filter(
+        (item) =>
+          Number(item.stock) > 0 &&
+          Number.isFinite(Number(item.size)) &&
+          Number(item.price) > 0,
+      )
+      .sort((a, b) => Number(a.size) - Number(b.size));
+  }, [product]);
+
+  const selectedSizeData = availableSizes.find(
+    (item) => Number(item.size) === Number(selectedSize),
+  );
+
+  const images = getImages(product);
+  const currentImage = images[0] || "";
+
+  const lowestPrice = useMemo(() => {
+    const prices = (product?.sizes || [])
+      .map((item) => Number(item.price))
+      .filter((price) => Number.isFinite(price) && price > 0);
+
+    return prices.length ? Math.min(...prices) : Number(product?.price) || 0;
+  }, [product]);
+
+  const currentPrice = selectedSizeData
+    ? Number(selectedSizeData.price)
+    : lowestPrice;
+
+  async function addToCart() {
+    if (!selectedSizeData) {
+      setMessage("Please select an available shoe size first.");
       return;
     }
 
-    const cart = readStorage("sneakpeak_cart");
+    if (quantity > Number(selectedSizeData.stock)) {
+      setMessage(
+        `Only ${selectedSizeData.stock} pairs are available in this size.`,
+      );
+      return;
+    }
 
-    const existingItem = cart.find(
-      (item) =>
-        String(item.productId || item._id) === String(product._id) &&
-        item.size === selectedSize
-    );
+    const token = localStorage.getItem("token");
 
-    if (existingItem) {
-      const currentQuantity = Math.max(1, Number(existingItem.quantity) || 1);
-
-      if (currentQuantity + quantity > 10) {
-        setMessage("Maximum quantity of 10 reached for this size.");
-        return;
-      }
-
-      existingItem.quantity = currentQuantity + quantity;
-    } else {
-      cart.push({
-        productId: product._id,
-        name: product.name,
-        category: product.category,
-        price: product.price,
-        image: product.image,
-        size: selectedSize,
-        quantity
-      });
+    if (!token) {
+      setMessage("Please login to add products to your cart.");
+      navigate("/login");
+      return;
     }
 
     try {
-      localStorage.setItem("sneakpeak_cart", JSON.stringify(cart));
+      setMessage("Adding sneaker to your cart...");
+
+      await api.post(
+        "/cart/add",
+        {
+          productId: product._id,
+          size: Number(selectedSizeData.size),
+          quantity: Number(quantity),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
       setMessage("Added to your cart successfully!");
-    } catch {
-      setMessage("Unable to update your cart. Please try again.");
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+          "Unable to add this sneaker to your cart. Please try again.",
+      );
     }
   }
 
@@ -171,8 +166,7 @@ function ProductDetails() {
     const wishlist = readStorage("sneakpeak_wishlist");
 
     const alreadySaved = wishlist.some(
-      (item) =>
-        String(item.productId || item._id) === String(product._id)
+      (item) => String(item.productId || item._id) === String(product._id),
     );
 
     if (alreadySaved) {
@@ -184,9 +178,9 @@ function ProductDetails() {
       productId: product._id,
       name: product.name,
       category: product.category,
-      price: product.price,
-      image: product.image,
-      seller: "SneakPeak Select"
+      price: lowestPrice,
+      image: currentImage,
+      seller: "SneakPeak Select",
     });
 
     try {
@@ -198,11 +192,20 @@ function ProductDetails() {
     }
   }
 
-  if (!product) {
+  if (loading) {
+    return (
+      <section className="page-container product-not-found">
+        <h1>Loading sneaker...</h1>
+        <p>Getting the product details for you.</p>
+      </section>
+    );
+  }
+
+  if (error || !product) {
     return (
       <section className="page-container product-not-found">
         <h1>Sneaker not found</h1>
-        <p>This sneaker may no longer be available.</p>
+        <p>{error || "This sneaker may no longer be available."}</p>
         <Link to="/products" className="details-back-link">
           Back to sneakers
         </Link>
@@ -222,14 +225,13 @@ function ProductDetails() {
 
       <div className="details-layout">
         <div className="details-image-wrap">
-          <span className="details-badge">{product.badge}</span>
-          {imageError ? (
-            <div className="product-image-fallback">
-              Image unavailable
-            </div>
+          <span className="details-badge">{product.badge || "FEATURED"}</span>
+
+          {imageError || !currentImage ? (
+            <div className="product-image-fallback">Image unavailable</div>
           ) : (
             <img
-              src={product.image}
+              src={currentImage}
               alt={product.name}
               onError={() => setImageError(true)}
             />
@@ -237,36 +239,58 @@ function ProductDetails() {
         </div>
 
         <div className="details-info">
-          <p className="details-category">{product.category}</p>
+          <p className="details-category">{product.category || "Sneakers"}</p>
+
           <h1>{product.name}</h1>
 
+          {product.brand && <p>{product.brand}</p>}
+
           <p className="details-price">
-            ₹{product.price.toLocaleString("en-IN")}
+            ₹{currentPrice.toLocaleString("en-IN")}
           </p>
 
-          <p className="details-description">{product.description}</p>
+          <p className="details-description">
+            {product.description ||
+              "A fresh addition to the SneakPeak collection."}
+          </p>
 
           <div className="details-size-heading">
             <h3>Select Size</h3>
             <span>UK sizing</span>
           </div>
 
-          <div className="details-sizes">
-            {sizes.map((size) => (
-              <button
-                type="button"
-                key={size}
-                className={`size-option ${selectedSize === size ? "selected" : ""}`}
-                onClick={() => {
-                  setSelectedSize(size);
-                  setMessage("");
-                }}
-                aria-pressed={selectedSize === size}
-              >
-                {size}
-              </button>
-            ))}
-          </div>
+          {availableSizes.length > 0 ? (
+            <div className="details-sizes">
+              {availableSizes.map((item) => (
+                <button
+                  type="button"
+                  key={item.size}
+                  className={`size-option ${
+                    Number(selectedSize) === Number(item.size) ? "selected" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedSize(Number(item.size));
+                    setQuantity(1);
+                    setMessage("");
+                  }}
+                  aria-pressed={Number(selectedSize) === Number(item.size)}
+                >
+                  UK {item.size}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="details-message">
+              Currently out of stock in all sizes.
+            </p>
+          )}
+
+          {selectedSizeData && (
+            <p className="details-message">
+              {selectedSizeData.stock} pairs available in UK{" "}
+              {selectedSizeData.size}.
+            </p>
+          )}
 
           <div className="details-quantity">
             <span>Quantity</span>
@@ -288,10 +312,19 @@ function ProductDetails() {
               <button
                 type="button"
                 onClick={() =>
-                  setQuantity((current) => Math.min(10, current + 1))
+                  setQuantity((current) =>
+                    Math.min(
+                      10,
+                      Number(selectedSizeData?.stock) || 10,
+                      current + 1,
+                    ),
+                  )
                 }
                 aria-label="Increase quantity"
-                disabled={quantity >= 10}
+                disabled={
+                  !selectedSizeData ||
+                  quantity >= Math.min(10, Number(selectedSizeData.stock))
+                }
               >
                 +
               </button>
@@ -302,8 +335,9 @@ function ProductDetails() {
             type="button"
             className="details-add-cart"
             onClick={addToCart}
+            disabled={!selectedSizeData}
           >
-            Add to Cart — ₹{(product.price * quantity).toLocaleString("en-IN")}
+            Add to Cart — ₹{(currentPrice * quantity).toLocaleString("en-IN")}
           </button>
 
           <button

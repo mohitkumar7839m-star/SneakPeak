@@ -1,3 +1,4 @@
+
 const Product = require("../models/Product");
 
 const activeProductFilter = { isArchived: false };
@@ -11,7 +12,12 @@ function escapeRegex(value) {
 }
 
 function getUserId(req) {
-  return req.user && (req.user.id || req.user._id || req.user.userId || req.user.sub);
+  return req.user && (
+    req.user.id ||
+    req.user._id ||
+    req.user.userId ||
+    req.user.sub
+  );
 }
 
 function validateProductFields(body, creating = false) {
@@ -27,15 +33,21 @@ function validateProductFields(body, creating = false) {
   }
 
   for (const field of ["category", "color"]) {
-    if (body[field] !== undefined && typeof body[field] !== "string") {
+    if (
+      body[field] !== undefined &&
+      typeof body[field] !== "string"
+    ) {
       return `${field} must be a string`;
     }
   }
 
-  if (body.images !== undefined && (
-    !Array.isArray(body.images) ||
-    !body.images.every(image => typeof image === "string")
-  )) {
+  if (
+    body.images !== undefined &&
+    (
+      !Array.isArray(body.images) ||
+      !body.images.every(image => typeof image === "string")
+    )
+  ) {
     return "Images must be an array of strings";
   }
 
@@ -49,6 +61,7 @@ function validateProductFields(body, creating = false) {
     }
 
     const seenSizes = new Set();
+
     for (const item of body.sizes) {
       if (
         !item ||
@@ -67,6 +80,7 @@ function validateProductFields(body, creating = false) {
       if (seenSizes.has(item.size)) {
         return "Each shoe size can only be listed once";
       }
+
       seenSizes.add(item.size);
     }
   }
@@ -75,16 +89,29 @@ function validateProductFields(body, creating = false) {
 }
 
 function handleError(res, error) {
-  if (error.name === "ValidationError" || error.name === "CastError") {
-    return res.status(400).json({ success: false, message: error.message });
+  if (
+    error.name === "ValidationError" ||
+    error.name === "CastError"
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: error.message
+    });
   }
 
   if (error.code === 11000) {
-    return res.status(409).json({ success: false, message: "A conflicting record already exists" });
+    return res.status(409).json({
+      success: false,
+      message: "A conflicting record already exists"
+    });
   }
 
   console.error("Product API error:", error);
-  return res.status(500).json({ success: false, message: "Unable to complete product request" });
+
+  return res.status(500).json({
+    success: false,
+    message: "Unable to complete product request"
+  });
 }
 
 exports.getProducts = async (req, res) => {
@@ -96,18 +123,23 @@ exports.getProducts = async (req, res) => {
       category,
       color,
       size,
-      minPrice,
-      maxPrice,
       sort = "newest",
       page = "1",
       limit = "10"
     } = req.query;
 
     const filter = { ...activeProductFilter };
-    const query = typeof q === "string" ? q.trim() : typeof search === "string" ? search.trim() : "";
+
+    const query =
+      typeof q === "string"
+        ? q.trim()
+        : typeof search === "string"
+          ? search.trim()
+          : "";
 
     if (query) {
       const expression = new RegExp(escapeRegex(query), "i");
+
       filter.$or = [
         { name: expression },
         { brand: expression },
@@ -115,32 +147,58 @@ exports.getProducts = async (req, res) => {
       ];
     }
 
-    for (const [field, value] of Object.entries({ brand, category, color })) {
+    for (const [field, value] of Object.entries({
+      brand,
+      category,
+      color
+    })) {
       if (value !== undefined) {
         if (typeof value !== "string" || !value.trim()) {
-          return res.status(400).json({ success: false, message: `Invalid ${field}` });
+          return res.status(400).json({
+            success: false,
+            message: `Invalid ${field}`
+          });
         }
-        filter[field] = new RegExp(`^${escapeRegex(value.trim())}$`, "i");
+
+        filter[field] = new RegExp(
+          `^${escapeRegex(value.trim())}$`,
+          "i"
+        );
       }
     }
 
     const sizeFilter = {};
+
     if (size !== undefined) {
       const selectedSize = Number(size);
+
       if (!Number.isFinite(selectedSize) || selectedSize <= 0) {
-        return res.status(400).json({ success: false, message: "Invalid size" });
+        return res.status(400).json({
+          success: false,
+          message: "Invalid size"
+        });
       }
+
       sizeFilter.size = selectedSize;
       sizeFilter.stock = { $gt: 0 };
     }
 
     const priceFilter = {};
-    for (const [field, operator] of [["minPrice", "$gte"], ["maxPrice", "$lte"]]) {
+
+    for (const [field, operator] of [
+      ["minPrice", "$gte"],
+      ["maxPrice", "$lte"]
+    ]) {
       if (req.query[field] !== undefined) {
         const price = Number(req.query[field]);
+
         if (!Number.isFinite(price) || price < 0) {
-          return res.status(400).json({ success: false, message: `Invalid ${field}` });
+          return res.status(400).json({
+            success: false,
+            message: `Invalid ${field}`
+          });
         }
+
         priceFilter[operator] = price;
       }
     }
@@ -155,7 +213,11 @@ exports.getProducts = async (req, res) => {
         message: "Minimum price cannot exceed maximum price"
       });
     }
-    if (Object.keys(priceFilter).length) sizeFilter.price = priceFilter;
+
+    if (Object.keys(priceFilter).length) {
+      sizeFilter.price = priceFilter;
+    }
+
     if (size !== undefined || Object.keys(priceFilter).length) {
       filter.sizes = { $elemMatch: sizeFilter };
     }
@@ -166,18 +228,34 @@ exports.getProducts = async (req, res) => {
       price_desc: { "sizes.price": -1 },
       name_asc: { name: 1 }
     };
-    if (typeof sort !== "string" || !Object.prototype.hasOwnProperty.call(sortOptions, sort)) {
-      return res.status(400).json({ success: false, message: "Invalid sort option" });
+
+    if (
+      typeof sort !== "string" ||
+      !Object.prototype.hasOwnProperty.call(sortOptions, sort)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid sort option"
+      });
     }
 
     const pageNumber = Number(page);
     const pageSize = Number(limit);
+
     if (!Number.isInteger(pageNumber) || pageNumber < 1) {
-      return res.status(400).json({ success: false, message: "Page must be a positive integer" });
+      return res.status(400).json({
+        success: false,
+        message: "Page must be a positive integer"
+      });
     }
+
     if (!Number.isInteger(pageSize) || pageSize < 1) {
-      return res.status(400).json({ success: false, message: "Limit must be a positive integer" });
+      return res.status(400).json({
+        success: false,
+        message: "Limit must be a positive integer"
+      });
     }
+
     const boundedPageSize = Math.min(50, pageSize);
 
     const [products, total] = await Promise.all([
@@ -185,6 +263,7 @@ exports.getProducts = async (req, res) => {
         .sort(sortOptions[sort])
         .skip((pageNumber - 1) * boundedPageSize)
         .limit(boundedPageSize),
+
       Product.countDocuments(filter)
     ]);
 
@@ -200,24 +279,82 @@ exports.getProducts = async (req, res) => {
   }
 };
 
+exports.getAdminProducts = async (req, res) => {
+  try {
+    const requestedPage = Number(req.query.page || 1);
+    const requestedLimit = Number(req.query.limit || 50);
+
+    if (
+      !Number.isInteger(requestedPage) ||
+      requestedPage < 1 ||
+      !Number.isInteger(requestedLimit) ||
+      requestedLimit < 1
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pagination values"
+      });
+    }
+
+    const pageSize = Math.min(50, requestedLimit);
+
+    const [products, total] = await Promise.all([
+      Product.find({})
+        .sort({ createdAt: -1 })
+        .skip((requestedPage - 1) * pageSize)
+        .limit(pageSize),
+
+      Product.countDocuments({})
+    ]);
+
+    return res.json({
+      success: true,
+      total,
+      page: requestedPage,
+      pages: Math.ceil(total / pageSize),
+      products
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 exports.searchProducts = async (req, res) => {
   if (typeof req.query.q !== "string" || !req.query.q.trim()) {
-    return res.status(400).json({ success: false, message: "Search query q is required" });
+    return res.status(400).json({
+      success: false,
+      message: "Search query q is required"
+    });
   }
+
   return exports.getProducts(req, res);
 };
 
 exports.getProductById = async (req, res) => {
   if (!isValidId(req.params.id)) {
-    return res.status(400).json({ success: false, message: "Invalid product ID" });
+    return res.status(400).json({
+      success: false,
+      message: "Invalid product ID"
+    });
   }
 
   try {
-    const product = await Product.findOne({ _id: req.params.id, ...activeProductFilter });
+    const product = await Product.findOne({
+      _id: req.params.id,
+      ...activeProductFilter
+    });
+
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
     }
-    return res.json({ success: true, product });
+
+    return res.json({
+      success: true,
+      product
+    });
   } catch (error) {
     return handleError(res, error);
   }
@@ -225,26 +362,56 @@ exports.getProductById = async (req, res) => {
 
 exports.createProduct = async (req, res) => {
   const userId = getUserId(req);
+
   if (!isValidId(userId)) {
-    return res.status(401).json({ success: false, message: "Authenticated user ID is missing or invalid" });
+    return res.status(401).json({
+      success: false,
+      message: "Authenticated user ID is missing or invalid"
+    });
   }
 
-  const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
-    ? req.body
-    : {};
+  const body =
+    req.body &&
+    typeof req.body === "object" &&
+    !Array.isArray(req.body)
+      ? req.body
+      : {};
+
   const validationError = validateProductFields(body, true);
+
   if (validationError) {
-    return res.status(400).json({ success: false, message: validationError });
+    return res.status(400).json({
+      success: false,
+      message: validationError
+    });
   }
 
   try {
     const productFields = {};
-    for (const field of ["name", "brand", "description", "images", "sizes", "category", "color"]) {
+
+    for (const field of [
+      "name",
+      "brand",
+      "description",
+      "images",
+      "sizes",
+      "category",
+      "color"
+    ]) {
       if (body[field] === undefined) continue;
+
       productFields[field] = body[field];
-      if (typeof productFields[field] === "string") productFields[field] = productFields[field].trim();
+
+      if (typeof productFields[field] === "string") {
+        productFields[field] = productFields[field].trim();
+      }
     }
-    const product = await Product.create({ ...productFields, sellerId: userId });
+
+    const product = await Product.create({
+      ...productFields,
+      sellerId: userId
+    });
+
     return res.status(201).json({
       success: true,
       message: "Product created successfully",
@@ -257,34 +424,77 @@ exports.createProduct = async (req, res) => {
 
 exports.updateProduct = async (req, res) => {
   if (!isValidId(req.params.id)) {
-    return res.status(400).json({ success: false, message: "Invalid product ID" });
+    return res.status(400).json({
+      success: false,
+      message: "Invalid product ID"
+    });
   }
 
-  const body = req.body && typeof req.body === "object" && !Array.isArray(req.body)
-    ? req.body
-    : {};
-  const allowedFields = ["name", "brand", "description", "images", "sizes", "category", "color"];
+  const body =
+    req.body &&
+    typeof req.body === "object" &&
+    !Array.isArray(req.body)
+      ? req.body
+      : {};
+
+  const allowedFields = [
+    "name",
+    "brand",
+    "description",
+    "images",
+    "sizes",
+    "category",
+    "color"
+  ];
+
   const fields = Object.keys(body);
-  if (!fields.length || fields.some(field => !allowedFields.includes(field))) {
-    return res.status(400).json({ success: false, message: "No valid product fields provided" });
+
+  if (
+    !fields.length ||
+    fields.some(field => !allowedFields.includes(field))
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "No valid product fields provided"
+    });
   }
 
   const validationError = validateProductFields(body);
+
   if (validationError) {
-    return res.status(400).json({ success: false, message: validationError });
+    return res.status(400).json({
+      success: false,
+      message: validationError
+    });
   }
 
   try {
-    const product = await Product.findOne({ _id: req.params.id, ...activeProductFilter });
+    const product = await Product.findOne({
+      _id: req.params.id,
+      ...activeProductFilter
+    });
+
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
     }
 
     for (const field of fields) {
-      product[field] = typeof body[field] === "string" ? body[field].trim() : body[field];
+      product[field] =
+        typeof body[field] === "string"
+          ? body[field].trim()
+          : body[field];
     }
+
     await product.save();
-    return res.json({ success: true, message: "Product updated successfully", product });
+
+    return res.json({
+      success: true,
+      message: "Product updated successfully",
+      product
+    });
   } catch (error) {
     return handleError(res, error);
   }
@@ -292,20 +502,79 @@ exports.updateProduct = async (req, res) => {
 
 exports.deleteProduct = async (req, res) => {
   if (!isValidId(req.params.id)) {
-    return res.status(400).json({ success: false, message: "Invalid product ID" });
+    return res.status(400).json({
+      success: false,
+      message: "Invalid product ID"
+    });
   }
 
   try {
-    const product = await Product.findOne({ _id: req.params.id, ...activeProductFilter });
+    const product = await Product.findOne({
+      _id: req.params.id,
+      ...activeProductFilter
+    });
+
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
     }
+
     product.isArchived = true;
     await product.save();
-    return res.json({ success: true, message: "Product deleted successfully" });
+
+    return res.json({
+      success: true,
+      message: "Product deleted successfully"
+    });
   } catch (error) {
     return handleError(res, error);
   }
 };
 
-exports.archiveProduct = exports.deleteProduct;
+exports.archiveProduct = async (req, res) => {
+  if (!isValidId(req.params.id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid product ID"
+    });
+  }
+
+  const isArchived = req.body?.isArchived;
+
+  if (typeof isArchived !== "boolean") {
+    return res.status(400).json({
+      success: false,
+      message: "isArchived must be true or false"
+    });
+  }
+
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { isArchived },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found"
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: isArchived
+        ? "Product archived successfully"
+        : "Product restored successfully",
+      product
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};

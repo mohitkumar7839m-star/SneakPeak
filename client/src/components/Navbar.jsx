@@ -1,10 +1,48 @@
-import { useState } from "react";
-import { NavLink, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    Boolean(localStorage.getItem("token"))
+  );
 
-  const closeMenu = () => setMenuOpen(false);
+  const accountRef = useRef(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const closeMenu = () => {
+    setMenuOpen(false);
+    setAccountOpen(false);
+  };
+
+  useEffect(() => {
+    setIsLoggedIn(Boolean(localStorage.getItem("token")));
+    closeMenu();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (accountRef.current && !accountRef.current.contains(event.target)) {
+        setAccountOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setIsLoggedIn(false);
+    closeMenu();
+    navigate("/");
+  };
 
   return (
     <header className="navbar">
@@ -41,19 +79,87 @@ function Navbar() {
           </NavLink>
 
           <NavLink to="/cart" onClick={closeMenu}>
-            🛍 Cart
-          </NavLink>
-          <NavLink to="/orders" onClick={closeMenu}>
-            My Orders
+            🛒 Cart
           </NavLink>
 
-          <NavLink to="/login" onClick={closeMenu}>
-            Login
-          </NavLink>
+          {!isLoggedIn ? (
+            <>
+              <NavLink to="/login" onClick={closeMenu}>
+                Login
+              </NavLink>
 
-          <NavLink to="/register" className="nav-register" onClick={closeMenu}>
-            Join Us
-          </NavLink>
+              <NavLink
+                to="/register"
+                className="nav-register"
+                onClick={closeMenu}
+              >
+                Join Us
+              </NavLink>
+            </>
+          ) : (
+            <div className="account-menu" ref={accountRef}>
+              <button
+                type="button"
+                className={`account-trigger ${accountOpen ? "active" : ""}`}
+                onClick={() => setAccountOpen((open) => !open)}
+                aria-label="My account"
+                aria-expanded={accountOpen}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M5 21v-2a7 7 0 0 1 14 0v2" />
+                </svg>
+                <span>Account</span>
+              </button>
+
+              {accountOpen && (
+                <div className="account-dropdown">
+                  <div className="account-dropdown-heading">
+                    <span className="account-dropdown-label">
+                      MY ACCOUNT
+                    </span>
+                    <span className="account-dropdown-subtitle">
+                      Manage your SneakPeak account
+                    </span>
+                  </div>
+
+                  <NavLink to="/profile" onClick={closeMenu}>
+                    <span>♙</span>
+                    My Profile
+                  </NavLink>
+
+                  <NavLink to="/orders" onClick={closeMenu}>
+                    <span>▤</span>
+                    My Orders
+                  </NavLink>
+
+                  <NavLink to="/wishlist" onClick={closeMenu}>
+                    <span>♡</span>
+                    My Wishlist
+                  </NavLink>
+
+                  <button
+                    type="button"
+                    className="account-logout"
+                    onClick={handleLogout}
+                  >
+                    <span>↪</span>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </nav>
       </div>
     </header>

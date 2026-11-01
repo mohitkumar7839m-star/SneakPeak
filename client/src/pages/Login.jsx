@@ -67,7 +67,6 @@ function Login() {
       setMessage("Login successful!");
 
       navigate("/");
-
     } catch (error) {
       setMessage(error.message || "Something went wrong.");
     } finally {
@@ -126,6 +125,10 @@ function Login() {
 
             <div className="auth-password-heading">
               <label htmlFor="login-password">Password</label>
+
+              <Link to="/forgot-password" className="forgot-password-link">
+                Forgot Password?
+              </Link>
             </div>
 
             <div className="auth-password-field">

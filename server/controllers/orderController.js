@@ -277,9 +277,157 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+const getAllOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .populate("user", "name email phone")
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    return res.status(200).json({
+      count: orders.length,
+      orders,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch all orders.",
+    });
+  }
+};
+
+const getAdminOrderById = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.orderId)) {
+      return res.status(400).json({
+        message: "Invalid order ID.",
+      });
+    }
+
+    const order = await Order.findById(req.params.orderId).populate(
+      "user",
+      "name email phone",
+    );
+
+    if (!order) {
+      return res.status(404).json({
+        message: "Order not found.",
+      });
+    }
+
+    return res.status(200).json({ order });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch order details.",
+    });
+  }
+};
+
+const updateOrderStatus = async (req, res) => {
+  const { orderStatus } = req.body;
+
+  const allowedTransitions = {
+    Placed: ["Confirmed", "Cancelled"],
+    Confirmed: ["Processing", "Cancelled"],
+    Processing: ["Shipped"],
+    Shipped: ["Delivered"],
+    Delivered: [],
+    Cancelled: [],
+  };
+
+  if (!mongoose.isValidObjectId(req.params.orderId)) {
+    return res.status(400).json({
+      message: "Invalid order ID.",
+    });
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(allowedTransitions, orderStatus)) {
+    return res.status(400).json({
+      message: "Invalid order status.",
+    });
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    let updatedOrder;
+
+    await session.withTransaction(async () => {
+      const order = await Order.findById(req.params.orderId).session(session);
+
+      if (!order) {
+        const error = new Error("Order not found.");
+        error.statusCode = 404;
+        throw error;
+      }
+
+      const allowedNextStatuses = allowedTransitions[order.orderStatus];
+
+      if (!allowedNextStatuses.includes(orderStatus)) {
+        const error = new Error(
+          `Cannot change order status from ${order.orderStatus} to ${orderStatus}.`,
+        );
+        error.statusCode = 400;
+        throw error;
+      }
+
+      if (orderStatus === "Cancelled") {
+        for (const item of order.items) {
+          const restored = await Product.updateOne(
+            {
+              _id: item.product,
+              sizes: {
+                $elemMatch: {
+                  size: item.size,
+                },
+              },
+            },
+            {
+              $inc: {
+                "sizes.$.stock": item.quantity,
+              },
+            },
+            { session },
+          );
+
+          if (restored.matchedCount === 0) {
+            const error = new Error(
+              `Could not restore stock for ${item.name}, size ${item.size}.`,
+            );
+            error.statusCode = 400;
+            throw error;
+          }
+        }
+      }
+
+      order.orderStatus = orderStatus;
+      await order.save({ session });
+
+      updatedOrder = order;
+    });
+
+    await updatedOrder.populate("user", "name email phone");
+
+    return res.status(200).json({
+      message: `Order status updated to ${orderStatus}.`,
+      order: updatedOrder,
+    });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({
+      message: error.message || "Failed to update order status.",
+    });
+  } finally {
+    await session.endSession();
+  }
+};
+
+
 module.exports = {
   checkout,
   getMyOrders,
   getOrderById,
   cancelOrder,
+  getAllOrders,
+  getAdminOrderById,
+  updateOrderStatus
 };
+

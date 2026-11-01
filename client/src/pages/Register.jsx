@@ -1,8 +1,10 @@
-
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 function Register() {
+  const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -26,7 +28,7 @@ function Register() {
     setMessage("");
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (formData.name.trim().length < 2) {
@@ -39,12 +41,48 @@ function Register() {
       return;
     }
 
+    if (formData.password.length > 72) {
+      setMessage("Password cannot exceed 72 characters.");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match.");
       return;
     }
 
-    setMessage("Registration API integration is pending. Your form is ready.");
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const response = await api.post("/auth/register", {
+        name: formData.name.trim(),
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password
+      });
+
+      const { token, user } = response.data;
+
+      if (!token || !user) {
+        setMessage("Registration response was incomplete. Please try logging in.");
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      navigate("/", {
+        replace: true,
+        state: { message: "Account created successfully. Welcome to SneakPeak!" }
+      });
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+          "Registration failed. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -93,7 +131,7 @@ function Register() {
               onChange={handleChange}
               autoComplete="name"
               minLength={2}
-              maxLength={80}
+              maxLength={60}
               required
             />
 
@@ -123,6 +161,7 @@ function Register() {
                 onChange={handleChange}
                 autoComplete="new-password"
                 minLength={8}
+                maxLength={72}
                 required
               />
 
@@ -174,7 +213,7 @@ function Register() {
             </button>
 
             {message && (
-              <p className="auth-message" role="status">
+              <p className="auth-message" role="alert">
                 {message}
               </p>
             )}

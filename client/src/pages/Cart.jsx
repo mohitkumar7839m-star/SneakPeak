@@ -1,58 +1,147 @@
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 function Cart() {
+  const navigate = useNavigate();
+
   const [cart, setCart] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    try {
-      const savedCart = JSON.parse(
-        localStorage.getItem("sneakpeak_cart") || "[]"
-      );
-      setCart(Array.isArray(savedCart) ? savedCart : []);
-    } catch {
-      setCart([]);
-    }
-  }, []);
+    let active = true;
 
-  function updateCart(updatedCart) {
-    setCart(updatedCart);
-    localStorage.setItem("sneakpeak_cart", JSON.stringify(updatedCart));
+    async function loadCart() {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
+      try {
+        const response = await api.get("/cart", {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (active) {
+          setCart(response.data?.cart?.items || []);
+          setError("");
+        }
+      } catch (err) {
+        if (active) {
+          setError(
+            err.response?.data?.message ||
+            "Unable to load your cart. Please try again."
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadCart();
+
+    window.addEventListener("cartUpdated", loadCart);
+
+    return () => {
+      active = false;
+      window.removeEventListener("cartUpdated", loadCart);
+    };
+  }, [navigate]);
+
+  async function updateQuantity(itemId, quantity) {
+    const token = localStorage.getItem("token");
+
+    try {
+      setUpdating(itemId);
+      setError("");
+
+      const response = await api.put(
+        `/cart/${itemId}`,
+        { quantity },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      setCart(response.data?.cart?.items || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        "Unable to update quantity."
+      );
+    } finally {
+      setUpdating("");
+    }
   }
 
-  function updateQuantity(productId, size, change) {
-    const updatedCart = cart
-      .map((item) => {
-        if (item.productId === productId && item.size === size) {
-          return {
-            ...item,
-            quantity: Math.max(1, Math.min(10, item.quantity + change))
-          };
+  async function removeItem(itemId) {
+    const token = localStorage.getItem("token");
+
+    try {
+      setUpdating(itemId);
+      setError("");
+
+      const response = await api.delete(`/cart/${itemId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
-        return item;
       });
 
-    updateCart(updatedCart);
+      setCart(response.data?.cart?.items || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        "Unable to remove this item."
+      );
+    } finally {
+      setUpdating("");
+    }
   }
-
-  function removeItem(productId, size) {
-    const updatedCart = cart.filter(
-      (item) => !(item.productId === productId && item.size === size)
-    );
-
-    updateCart(updatedCart);
-  }
-
-  const subtotal = cart.reduce(
-    (total, item) => total + Number(item.price) * Number(item.quantity),
-    0
-  );
 
   const totalItems = cart.reduce(
-    (total, item) => total + Number(item.quantity),
+    (total, item) => total + Number(item.quantity || 0),
     0
   );
+
+  const subtotal = cart.reduce((total, item) => {
+    const product = item.product;
+
+    if (!product || typeof product !== "object") {
+      return total;
+    }
+
+    const selectedSize = product.sizes?.find(
+      (size) => Number(size.size) === Number(item.size)
+    );
+
+    return total + (
+      Number(selectedSize?.price || 0) *
+      Number(item.quantity || 0)
+    );
+  }, 0);
+
+  if (loading) {
+    return (
+      <section className="cart-page">
+        <div className="cart-heading">
+          <p className="cart-eyebrow">YOUR SELECTION</p>
+          <h1>Shopping <span>Cart.</span></h1>
+          <p>Loading your shopping cart...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="cart-page">
@@ -66,74 +155,117 @@ function Cart() {
         <div className="cart-items-section">
           <div className="cart-section-heading">
             <h2>Your Items</h2>
-            <span>{totalItems} {totalItems === 1 ? "item" : "items"}</span>
+            <span>
+              {totalItems} {totalItems === 1 ? "item" : "items"}
+            </span>
           </div>
+
+          {error && (
+            <p className="cart-message" role="alert">
+              {error}
+            </p>
+          )}
 
           {cart.length === 0 ? (
             <div className="cart-empty">
               <div className="cart-empty-icon">🛍</div>
               <h2>Your cart is empty</h2>
-              <p>Looks like you haven't found your perfect pair yet.</p>
+              <p>
+                Looks like you haven't found your perfect pair yet.
+              </p>
               <Link to="/products" className="cart-shop-button">
                 Explore Sneakers <span>↗</span>
               </Link>
             </div>
           ) : (
             <div className="cart-items">
-              {cart.map((item) => (
-                <article
-                  className="cart-item"
-                  key={`${item.productId}-${item.size}`}
-                >
-                  <Link
-                    to={`/products/${item.productId}`}
-                    className="cart-item-image"
-                  >
-                    <img src={item.image} alt={item.name} />
-                  </Link>
+              {cart.map((item) => {
+                const product = item.product;
+                const productId = product?._id;
+                const selectedSize = product?.sizes?.find(
+                  (size) => Number(size.size) === Number(item.size)
+                );
 
-                  <div className="cart-item-info">
-                    <p className="cart-item-category">SNEAKPEAK SELECT</p>
-                    <h3>{item.name}</h3>
-                    <p className="cart-item-size">Size: {item.size}</p>
-                    <strong>
-                      ₹{(Number(item.price) * Number(item.quantity)).toLocaleString("en-IN")}
-                    </strong>
+                const price = Number(selectedSize?.price || 0);
+                const stock = Number(selectedSize?.stock || 0);
+                const quantity = Number(item.quantity || 1);
 
-                    <div className="cart-item-actions">
-                      <div className="cart-quantity">
+                const firstImage = product?.images?.[0];
+                const image = typeof firstImage === "string"
+                  ? firstImage
+                  : firstImage?.url || firstImage?.imageUrl || "";
+
+                return (
+                  <article className="cart-item" key={item._id}>
+                    <Link
+                      to={productId ? `/products/${productId}` : "/products"}
+                      className="cart-item-image"
+                    >
+                      {image ? (
+                        <img src={image} alt={product?.name || "Sneaker"} />
+                      ) : (
+                        <span>Image unavailable</span>
+                      )}
+                    </Link>
+
+                    <div className="cart-item-info">
+                      <p className="cart-item-category">
+                        {product?.category || "SNEAKPEAK SELECT"}
+                      </p>
+
+                      <h3>{product?.name || "Unavailable product"}</h3>
+
+                      <p className="cart-item-size">
+                        Size: UK {item.size}
+                      </p>
+
+                      <strong>
+                        ₹{(price * quantity).toLocaleString("en-IN")}
+                      </strong>
+
+                      <div className="cart-item-actions">
+                        <div className="cart-quantity">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateQuantity(item._id, quantity - 1)
+                            }
+                            disabled={quantity <= 1 || updating === item._id}
+                            aria-label="Decrease quantity"
+                          >
+                            −
+                          </button>
+
+                          <span>{quantity}</span>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateQuantity(item._id, quantity + 1)
+                            }
+                            disabled={
+                              quantity >= stock ||
+                              updating === item._id
+                            }
+                            aria-label="Increase quantity"
+                          >
+                            +
+                          </button>
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() =>
-                            updateQuantity(item.productId, item.size, -1)
-                          }
-                          aria-label={`Decrease quantity of ${item.name}`}
+                          className="cart-remove"
+                          onClick={() => removeItem(item._id)}
+                          disabled={updating === item._id}
                         >
-                          −
-                        </button>
-                        <span>{item.quantity}</span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateQuantity(item.productId, item.size, 1)
-                          }
-                          aria-label={`Increase quantity of ${item.name}`}
-                        >
-                          +
+                          {updating === item._id ? "Updating..." : "Remove"}
                         </button>
                       </div>
-
-                      <button
-                        type="button"
-                        className="cart-remove"
-                        onClick={() => removeItem(item.productId, item.size)}
-                      >
-                        Remove
-                      </button>
                     </div>
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           )}
 
@@ -158,20 +290,18 @@ function Cart() {
             </div>
 
             <div className="cart-summary-total">
-              <span>Subtotal</span>
+              <span>Total</span>
               <strong>₹{subtotal.toLocaleString("en-IN")}</strong>
             </div>
 
             <p className="cart-summary-note">
-              Delivery charges and final totals will be confirmed at checkout.
+              Final prices and stock will be verified when you place your order.
             </p>
 
             <button
               type="button"
               className="cart-checkout-button"
-              onClick={() =>
-                alert("Checkout will be connected when the team checkout flow is ready.")
-              }
+              onClick={() => navigate("/checkout")}
             >
               Proceed to Checkout <span>→</span>
             </button>
