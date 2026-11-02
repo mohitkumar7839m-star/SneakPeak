@@ -2,61 +2,95 @@
 
 ### Discover Your Style. Step Into SneakPeak.
 
-SneakPeak is a full-stack sneaker e-commerce web application built to provide customers with a smooth online shopping experience and administrators with tools to manage products, inventory, customers, and orders.
+**SneakPeak** is a full-stack sneaker e-commerce web application built with the MERN stack. It brings together a modern sneaker-shopping experience for customers and a centralized management system for administrators.
 
-The project is developed using the MERN stack and includes customer-facing shopping functionality alongside an administrative dashboard.
+Customers can explore sneakers, select sizes, manage their shopping carts, place orders, and track purchases. Administrators can manage products, size-wise inventory, customers, orders, and store activity through a dedicated dashboard.
 
 ---
 
 ## ✨ Features
 
-### Customer Features
-- Browse and explore sneaker products.
-- View product details and available sizes.
-- Select shoe sizes and add products to the cart.
-- Manage cart quantities and view calculated prices.
-- Complete the checkout process.
-- View order confirmations and track order statuses.
-- Manage customer profiles.
-- Add and manage delivery addresses.
-- Change account passwords.
+### 🛍️ Customer Experience
 
-### Admin Features
-- Secure admin login.
-- Admin dashboard with store statistics.
-- Add and manage products.
-- Edit product details and pricing.
-- Manage product inventory and shoe-size stock.
+- Browse the sneaker catalogue.
+- Explore product details, images, brands, categories, and available sizes.
+- Select shoe sizes and add products to the shopping cart.
+- Update cart quantities and view automatically calculated prices.
+- Complete the checkout process.
+- View order confirmations and order history.
+- Track order status updates.
+- Manage personal profile information.
+- Add and update delivery addresses.
+- Change account passwords.
+- Explore related product recommendations.
+
+### ⚙️ Admin Dashboard
+
+- Secure administrator authentication.
+- Dashboard with store statistics.
+- Create, view, update, and manage products.
+- Manage product details, pricing, and images.
+- Maintain inventory at the individual shoe-size level.
 - View customer information.
-- View and manage customer orders.
+- Access and manage customer orders.
 - Update order statuses.
 - Monitor low-stock and out-of-stock inventory.
 
+### 📦 Inventory & Order Management
+
+- Track stock for individual shoe sizes.
+- Automatically deduct inventory when orders are placed.
+- Restore inventory when eligible orders are cancelled.
+- Manage order processing and delivery statuses.
+- Maintain product and order information through the backend.
+
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
 | Technology | Purpose |
 |---|---|
 | React.js | Frontend user interface |
-| Vite | Frontend development and build tool |
+| Vite | Frontend development and production build |
+| React Router | Client-side navigation |
+| Axios | API communication |
+| Lucide React | Interface icons |
+| CSS | Styling and responsive layouts |
 | Node.js | Backend runtime |
-| Express.js | Backend framework and REST APIs |
-| MongoDB | Database |
-| Mongoose | MongoDB object modelling |
+| Express.js | REST API and server framework |
+| MongoDB | NoSQL database |
+| Mongoose | Database modelling and queries |
 | JWT | Authentication |
-| bcrypt | Password hashing |
-| CSS | Interface styling |
+| bcryptjs | Password hashing |
+| Helmet | HTTP security headers |
+| CORS | Cross-origin request handling |
+| Git & GitHub | Version control and collaboration |
 
 ---
 
 ## 📁 Project Structure
 
-The project contains separate frontend and backend applications.
+The repository is organized into two independent applications: `client` and `server`.
 
+```text
 SneakPeak/
 │
+├── client/
+│   ├── public/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   │   └── Admin/
+│   │   ├── services/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── index.html
+│   └── package.json
+│
 ├── server/
+│   ├── config/
 │   ├── controllers/
 │   ├── middleware/
 │   ├── models/
@@ -65,32 +99,25 @@ SneakPeak/
 │   ├── server.js
 │   └── package.json
 │
-├── src/
-│   ├── assets/
-│   ├── components/
-│   ├── pages/
-│   └── ...
-│
-├── public/
-├── package.json
+├── .gitignore
 └── README.md
-
-*Note: Adjust this structure if the actual repository folders differ.*
+```
 
 ---
 
-## ⚙️ Getting Started
+## 🚀 Getting Started
 
-Follow these steps to run the project locally.
+Follow these instructions to run SneakPeak locally.
 
 ### Prerequisites
 
-Install the following:
+Make sure you have installed:
 
-- Node.js
-- npm
-- MongoDB Atlas account or a local MongoDB installation
-- Git
+- [Node.js](https://nodejs.org/)
+- npm (included with Node.js)
+- [MongoDB Atlas](https://www.mongodb.com/atlas) or a local MongoDB database
+- [Git](https://git-scm.com/)
+- A code editor such as Visual Studio Code
 
 ### 1. Clone the repository
 
@@ -99,130 +126,203 @@ git clone https://github.com/mohitkumar7839m-star/SneakPeak.git
 cd SneakPeak
 ```
 
-### 2. Install frontend dependencies
-
-```bash
-npm install
-```
-
-### 3. Install backend dependencies
+### 2. Install backend dependencies
 
 ```bash
 cd server
 npm install
 ```
 
-### 4. Configure environment variables
+### 3. Configure backend environment variables
 
 Create a `.env` file inside the `server` directory.
 
-Add the environment variables required by the backend configuration.
-
-Example format:
+Add your own configuration values:
 
 ```env
 PORT=5000
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_secure_jwt_secret
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_private_jwt_secret
+FRONTEND_URLS=http://localhost:5173
+NODE_ENV=development
 ```
 
-**Important:** The variable names above are examples. Confirm that they match the names actually used in the backend source code before running the application. Never commit real database credentials or secrets to GitHub.
+**Important:** Use the exact variable names expected by the backend. Keep your real MongoDB connection string and JWT secret private. Never commit your `.env` file to GitHub.
 
-### 5. Start the backend
+### 4. Start the backend
 
-From the `server` directory:
+From the `server` directory, run:
 
 ```bash
 npm start
 ```
 
-### 6. Start the frontend
+The backend should start at:
 
-Open another terminal in the project root:
+```text
+http://localhost:5000
+```
+
+API health endpoint:
+
+```text
+http://localhost:5000/api/health
+```
+
+### 5. Install frontend dependencies
+
+Open another terminal at the repository root:
+
+```bash
+cd client
+npm install
+```
+
+### 6. Configure the frontend API URL
+
+If your frontend API configuration uses `VITE_API_URL`, create a `.env` file inside `client`:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+### 7. Start the frontend
+
+From the `client` directory:
 
 ```bash
 npm run dev
 ```
 
-Vite will display the local frontend URL in the terminal.
+Vite will display the local development URL in the terminal. Open that URL in your browser.
 
 ---
 
-## 🛍️ Inventory Management
+## 🔌 Backend API Overview
 
-SneakPeak supports inventory management at the product-size level.
+The Express backend exposes REST API routes for the application's main modules.
 
-Administrators can manage available stock for different shoe sizes. When a customer places an order, the corresponding inventory is updated.
+| API Base Route | Functionality |
+|---|---|
+| `/api/auth` | User authentication and account operations |
+| `/api/products` | Product catalogue and product operations |
+| `/api/cart` | Shopping cart operations |
+| `/api/orders` | Checkout and order management |
+| `/api/inventory` | Inventory management |
+| `/api/admin/customers` | Customer administration |
+| `/api/admin/dashboard` | Dashboard statistics |
+| `/api/health` | Backend health check |
+
+Protected routes require appropriate authentication and authorization.
 
 ---
 
 ## 📊 Admin Dashboard
 
-The administrative dashboard provides an overview of store activity, including:
+The administration panel provides tools to manage the store and monitor its activity.
 
-- Product statistics
-- Order statistics
-- Customer information
-- Revenue information
-- Low-stock product indicators
-- Inventory availability
+Key areas include:
 
----
-
-## 🧪 Testing
-
-The following functionality has been manually tested during development:
-
-- Admin authentication and dashboard access
-- Product creation and editing
-- Product catalogue browsing
-- Size selection and cart operations
-- Checkout and order confirmation
-- Inventory deduction after ordering
-- Customer profile and address management
-- Order status updates
-- Customer order history
-
-Testing results reflect the development environment and should not be interpreted as a complete production security or performance audit.
+- Product management
+- Customer management
+- Order management
+- Revenue and order statistics
+- Inventory monitoring
+- Low-stock indicators
 
 ---
 
-## 🔐 Security
+## 🧪 Development Testing
 
-The application uses authentication and password hashing mechanisms.
+The following workflows have been manually tested during development:
 
-Before any public production deployment, additional security checks, configuration reviews, and end-to-end testing should be completed.
+- Administrator login and dashboard access.
+- Product creation and editing.
+- Product catalogue browsing.
+- Product size selection.
+- Shopping cart quantity and price calculations.
+- Checkout and order confirmation.
+- Inventory deduction after placing orders.
+- Customer profile and address management.
+- Customer order history.
+- Administrator order status updates.
+- Inventory restoration after eligible order cancellations.
 
-Do not publish `.env` files, database credentials, JWT secrets, or other private configuration values.
+These tests reflect development-environment testing and do not constitute a complete production security, performance, or compatibility audit.
 
 ---
 
-## 🚀 Future Improvements
+## 🔐 Security Considerations
 
-Potential improvements include:
+SneakPeak incorporates several security-related mechanisms:
 
-- Online payment gateway integration
-- Email notifications for orders
-- Product reviews and ratings
-- Advanced search and filtering
-- Improved product imagery
-- Automated testing
-- Production deployment and monitoring
+- JWT-based authentication.
+- Password hashing using bcryptjs.
+- Protected backend routes.
+- Administrator authorization middleware.
+- Helmet security headers.
+- CORS configuration.
+- Environment-based configuration for sensitive values.
 
-These are proposed improvements, not claims that the features are currently implemented.
+A complete production release should also undergo security review, authorization testing, error-handling checks, and end-to-end testing.
+
+**Never publish database credentials, JWT secrets, access tokens, or private environment files.**
+
+---
+
+## 🚀 Deployment
+
+The planned deployment architecture is:
+
+| Component | Platform |
+|---|---|
+| Frontend | Vercel |
+| Backend API | Render |
+| Database | MongoDB Atlas |
+
+Production environment variables must be configured through the respective hosting platforms. Do not include private credentials in this repository.
+
+Deployment links will be added after the hosted application has been successfully tested.
+
+---
+
+## 🔮 Future Improvements
+
+Potential areas for future development include:
+
+- Online payment gateway integration.
+- Email notifications and order updates.
+- Product reviews and ratings.
+- Advanced search and filtering.
+- Enhanced product imagery.
+- Automated testing.
+- Performance optimization.
+- Production monitoring.
+
+These are planned improvements and should not be interpreted as currently implemented features.
 
 ---
 
 ## 👥 Team & Acknowledgements
 
-**Project:** SneakPeak
-**Category:** Full-Stack Web Development
+**Project Name:** SneakPeak  
+**Project Category:** Full-Stack E-Commerce Web Application  
 **Technology:** MERN Stack
 
-Add the project contributors and their respective responsibilities here.
+Developed as a collaborative web development project.
+
+Add the names of all six project contributors and their respective responsibilities here.
 
 ---
 
 ## 📄 License
 
-This project is developed for educational and demonstration purposes. Add a license if the project is intended to be distributed under specific terms.
+This project is developed for educational and demonstration purposes. No open-source license has been specified yet.
+
+---
+
+<p align="center">
+  **SneakPeak 👟**
+  <br />
+  Discover Your Style. Step Into SneakPeak.
+</p>
