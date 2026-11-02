@@ -40,9 +40,9 @@ async function handleSubmit(event) {
     setMessage("");
 
     const response = await api.post("/auth/login", {
-      email: formData.email.trim().toLowerCase(),
-      password: formData.password
-    });
+  email: formData.email.trim().toLowerCase(),
+  password: formData.password
+});
 
     const { token, user } = response.data;
 
