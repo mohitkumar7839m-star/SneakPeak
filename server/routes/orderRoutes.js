@@ -1,4 +1,3 @@
-
 const express = require("express");
 const router = express.Router();
 
@@ -12,8 +11,14 @@ const {
   cancelOrder,
   getAllOrders,
   getAdminOrderById,
-  updateOrderStatus
+  updateOrderStatus,
+  getFrequentlyBoughtTogether,
 } = require("../controllers/orderController");
+
+router.get(
+  "/frequently-bought-together/:productId",
+  getFrequentlyBoughtTogether,
+);
 
 router.post("/checkout", authMiddleware, checkout);
 router.get("/my-orders", authMiddleware, getMyOrders);
@@ -22,21 +27,21 @@ router.get(
   "/admin/all",
   authMiddleware,
   adminMiddleware,
-  getAllOrders
+  getAllOrders,
 );
 
 router.get(
   "/admin/:orderId",
   authMiddleware,
   adminMiddleware,
-  getAdminOrderById
+  getAdminOrderById,
 );
 
 router.patch(
   "/admin/:orderId/status",
   authMiddleware,
   adminMiddleware,
-  updateOrderStatus
+  updateOrderStatus,
 );
 
 router.get("/:orderId", authMiddleware, getOrderById);

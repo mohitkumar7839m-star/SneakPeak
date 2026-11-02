@@ -295,6 +295,111 @@ const getAllOrders = async (req, res) => {
   }
 };
 
+const getFrequentlyBoughtTogether = async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.productId)) {
+      return res.status(400).json({
+        message: "Invalid product ID",
+      });
+    }
+
+    const productId = new mongoose.Types.ObjectId(req.params.productId);
+
+    const purchaseData = await Order.aggregate([
+      {
+        $match: {
+          "items.product": productId,
+          orderStatus: { $ne: "Cancelled" },
+        },
+      },
+      {
+        $unwind: "$items",
+      },
+      {
+        $match: {
+          "items.product": { $ne: productId },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            orderId: "$_id",
+            productId: "$items.product",
+          },
+          quantity: { $sum: "$items.quantity" },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.productId",
+          orderCount: { $sum: 1 },
+          totalQuantity: { $sum: "$quantity" },
+        },
+      },
+      {
+        $sort: {
+          orderCount: -1,
+          totalQuantity: -1,
+        },
+      },
+      {
+        $limit: 20,
+      },
+    ]);
+
+    if (purchaseData.length === 0) {
+      return res.status(200).json({
+        count: 0,
+        recommendations: [],
+      });
+    }
+
+    const productIds = purchaseData.map((item) => item._id);
+
+    const products = await Product.find({
+      _id: { $in: productIds },
+      isArchived: { $ne: true },
+      sizes: {
+        $elemMatch: {
+          stock: { $gt: 0 },
+        },
+      },
+    })
+      .select("name brand category color description images sizes")
+      .lean();
+
+    const productMap = new Map(
+      products.map((product) => [product._id.toString(), product]),
+    );
+
+    const recommendations = purchaseData
+      .map((item) => {
+        const product = productMap.get(item._id.toString());
+
+        if (!product) {
+          return null;
+        }
+
+        return {
+          ...product,
+          purchaseCount: item.orderCount,
+          quantityPurchased: item.totalQuantity,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 3);
+
+    return res.status(200).json({
+      count: recommendations.length,
+      recommendations,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to fetch frequently bought together products",
+    });
+  }
+};
+
 const getAdminOrderById = async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.orderId)) {
@@ -428,6 +533,7 @@ module.exports = {
   cancelOrder,
   getAllOrders,
   getAdminOrderById,
-  updateOrderStatus
+  updateOrderStatus,
+  getFrequentlyBoughtTogether
 };
 

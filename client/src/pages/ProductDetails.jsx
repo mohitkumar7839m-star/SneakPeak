@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../services/api";
@@ -23,11 +24,94 @@ function getImages(product) {
     .filter(Boolean);
 }
 
+function getProductPrice(product) {
+  const prices = (product?.sizes || [])
+    .map((item) => Number(item.price))
+    .filter((price) => Number.isFinite(price) && price > 0);
+
+  return prices.length ? Math.min(...prices) : Number(product?.price) || 0;
+}
+
+function hasAvailableStock(product) {
+  if (Array.isArray(product?.sizes)) {
+    return product.sizes.some((item) => Number(item.stock) > 0);
+  }
+
+  const stock = product?.totalStock ?? product?.stock;
+
+  return stock === undefined || Number(stock) > 0;
+}
+
+function getTrendingScore(product) {
+  const fields = [
+    "totalSold",
+    "soldCount",
+    "salesCount",
+    "orderCount",
+  ];
+
+  return fields.reduce((score, field) => {
+    return score + Math.max(0, Number(product?.[field]) || 0);
+  }, 0);
+}
+
+function ProductCard({ item }) {
+  const [imageError, setImageError] = useState(false);
+  const image = getImages(item)[0];
+
+  return (
+    <Link
+      to={`/products/${item._id}`}
+      className="recommendation-card"
+    >
+      <div className="recommendation-image">
+        {image && !imageError ? (
+          <img
+            src={image}
+            alt={item.name}
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="recommendation-image-fallback">
+            Image unavailable
+          </div>
+        )}
+
+        {item.badge && (
+          <span className="recommendation-badge">{item.badge}</span>
+        )}
+      </div>
+
+      <div className="recommendation-info">
+        <span className="recommendation-brand">
+          {item.brand || "SneakPeak"}
+        </span>
+
+        <h3>{item.name}</h3>
+
+        <p className="recommendation-category">
+          {item.category || "Sneakers"}
+        </p>
+
+        <div className="recommendation-bottom">
+          <strong>
+            ₹{getProductPrice(item).toLocaleString("en-IN")}
+          </strong>
+
+          <span>View Product →</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [product, setProduct] = useState(null);
+  const [catalogue, setCatalogue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedSize, setSelectedSize] = useState(null);
@@ -73,7 +157,30 @@ function ProductDetails() {
       }
     }
 
+    async function fetchCatalogue() {
+      try {
+        const response = await api.get("/products/all");
+
+        const data = response.data;
+        const products =
+          data?.products ||
+          data?.data?.products ||
+          data?.items ||
+          data?.data ||
+          data;
+
+        if (isMounted && Array.isArray(products)) {
+          setCatalogue(products);
+        }
+      } catch {
+        if (isMounted) {
+          setCatalogue([]);
+        }
+      }
+    }
+
     fetchProduct();
+    fetchCatalogue();
 
     return () => {
       isMounted = false;
@@ -103,16 +210,84 @@ function ProductDetails() {
   const currentImage = images[0] || "";
 
   const lowestPrice = useMemo(() => {
-    const prices = (product?.sizes || [])
-      .map((item) => Number(item.price))
-      .filter((price) => Number.isFinite(price) && price > 0);
-
-    return prices.length ? Math.min(...prices) : Number(product?.price) || 0;
+    return getProductPrice(product);
   }, [product]);
 
   const currentPrice = selectedSizeData
     ? Number(selectedSizeData.price)
     : lowestPrice;
+
+  const similarProducts = useMemo(() => {
+    if (!product || !catalogue.length) {
+      return [];
+    }
+
+    return catalogue
+      .filter(
+        (item) =>
+          String(item._id) !== String(product._id) &&
+          !item.isArchived &&
+          hasAvailableStock(item),
+      )
+      .map((item) => {
+        let score = 0;
+
+        if (
+          item.category &&
+          product.category &&
+          item.category.toLowerCase() === product.category.toLowerCase()
+        ) {
+          score += 4;
+        }
+
+        if (
+          item.brand &&
+          product.brand &&
+          item.brand.toLowerCase() === product.brand.toLowerCase()
+        ) {
+          score += 3;
+        }
+
+        const itemPrice = getProductPrice(item);
+        const priceDifference =
+          Math.abs(itemPrice - lowestPrice) / Math.max(lowestPrice, 1);
+
+        if (priceDifference <= 0.25) {
+          score += 2;
+        } else if (priceDifference <= 0.5) {
+          score += 1;
+        }
+
+        return { item, score, priceDifference };
+      })
+      .filter((entry) => entry.score > 0)
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          a.priceDifference - b.priceDifference,
+      )
+      .slice(0, 4)
+      .map((entry) => entry.item);
+  }, [product, catalogue, lowestPrice]);
+
+  const trendingProducts = useMemo(() => {
+    if (!catalogue.length) {
+      return [];
+    }
+
+    return catalogue
+      .filter(
+        (item) =>
+          String(item._id) !== String(product?._id) &&
+          !item.isArchived &&
+          hasAvailableStock(item) &&
+          getTrendingScore(item) > 0,
+      )
+      .sort(
+        (a, b) => getTrendingScore(b) - getTrendingScore(a),
+      )
+      .slice(0, 4);
+  }, [catalogue, product]);
 
   async function addToCart() {
     if (!selectedSizeData) {
@@ -225,10 +400,14 @@ function ProductDetails() {
 
       <div className="details-layout">
         <div className="details-image-wrap">
-          <span className="details-badge">{product.badge || "FEATURED"}</span>
+          <span className="details-badge">
+            {product.badge || "FEATURED"}
+          </span>
 
           {imageError || !currentImage ? (
-            <div className="product-image-fallback">Image unavailable</div>
+            <div className="product-image-fallback">
+              Image unavailable
+            </div>
           ) : (
             <img
               src={currentImage}
@@ -239,7 +418,9 @@ function ProductDetails() {
         </div>
 
         <div className="details-info">
-          <p className="details-category">{product.category || "Sneakers"}</p>
+          <p className="details-category">
+            {product.category || "Sneakers"}
+          </p>
 
           <h1>{product.name}</h1>
 
@@ -266,7 +447,9 @@ function ProductDetails() {
                   type="button"
                   key={item.size}
                   className={`size-option ${
-                    Number(selectedSize) === Number(item.size) ? "selected" : ""
+                    Number(selectedSize) === Number(item.size)
+                      ? "selected"
+                      : ""
                   }`}
                   onClick={() => {
                     setSelectedSize(Number(item.size));
@@ -337,7 +520,8 @@ function ProductDetails() {
             onClick={addToCart}
             disabled={!selectedSizeData}
           >
-            Add to Cart — ₹{(currentPrice * quantity).toLocaleString("en-IN")}
+            Add to Cart — ₹
+            {(currentPrice * quantity).toLocaleString("en-IN")}
           </button>
 
           <button
@@ -361,6 +545,54 @@ function ProductDetails() {
           </div>
         </div>
       </div>
+
+      {similarProducts.length > 0 && (
+        <section className="recommendations-section">
+          <div className="recommendations-heading">
+            <div>
+              <span className="recommendations-eyebrow">
+                PICKED FOR YOU
+              </span>
+              <h2>You May Also Like</h2>
+              <p>More sneakers that match your style.</p>
+            </div>
+
+            <Link to="/products" className="recommendations-view-all">
+              Explore all →
+            </Link>
+          </div>
+
+          <div className="recommendations-grid">
+            {similarProducts.map((item) => (
+              <ProductCard key={item._id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {trendingProducts.length > 0 && (
+        <section className="recommendations-section trending-section">
+          <div className="recommendations-heading">
+            <div>
+              <span className="recommendations-eyebrow">
+                THE CROWD'S PICKS
+              </span>
+              <h2>Trending Sneakers</h2>
+              <p>Popular sneakers based on recorded sales.</p>
+            </div>
+
+            <Link to="/products" className="recommendations-view-all">
+              Explore all →
+            </Link>
+          </div>
+
+          <div className="recommendations-grid">
+            {trendingProducts.map((item) => (
+              <ProductCard key={item._id} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
     </section>
   );
 }

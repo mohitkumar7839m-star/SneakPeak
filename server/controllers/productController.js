@@ -125,7 +125,7 @@ exports.getProducts = async (req, res) => {
       size,
       sort = "newest",
       page = "1",
-      limit = "10"
+      limit = "50"
     } = req.query;
 
     const filter = { ...activeProductFilter };
