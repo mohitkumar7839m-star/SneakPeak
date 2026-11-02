@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
@@ -25,54 +26,49 @@ function Login() {
     setMessage("");
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  
+async function handleSubmit(event) {
+  event.preventDefault();
 
-    if (!formData.email.trim() || !formData.password) {
-      setMessage("Please enter your email and password.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setMessage("");
-
-      const response = await fetch(
-        "http://localhost:5000/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            email: formData.email.trim(),
-            password: formData.password
-          })
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed.");
-      }
-
-      if (!data.token || !data.user) {
-        throw new Error("Invalid server response.");
-      }
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      setMessage("Login successful!");
-
-      navigate("/");
-    } catch (error) {
-      setMessage(error.message || "Something went wrong.");
-    } finally {
-      setLoading(false);
-    }
+  if (!formData.email.trim() || !formData.password) {
+    setMessage("Please enter your email and password.");
+    return;
   }
+
+  try {
+    setLoading(true);
+    setMessage("");
+
+    const response = await api.post("/auth/login", {
+      email: formData.email.trim().toLowerCase(),
+      password: formData.password
+    });
+
+    const { token, user } = response.data;
+
+    if (!token || !user) {
+      throw new Error("Invalid server response.");
+    }
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    navigate("/", {
+      replace: true,
+      state: { message: "Login successful!" }
+    });
+
+  } catch (error) {
+    setMessage(
+      error.response?.data?.message ||
+      error.message ||
+      "Login failed. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   return (
     <section className="auth-page">
